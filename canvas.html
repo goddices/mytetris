@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        #canvas1 {
+            background: #123
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas1" width="500" height="400"></canvas>
+</body>
+<script type="text/javascript">
+    var context1 = document.getElementById("canvas1").getContext("2d");
+    var x = 10, y = 10, r = 10;
+    (function animation() {
+        window.requestAnimationFrame(animation);
+        context1.clearRect(0, 0, context1.canvas.width, context1.canvas.height);
+        context1.fillStyle = "#FFF";
+        context1.font = "12px Courier New"
+        context1.fillText("hello world!", x, y);
+        x = x + 0.5;
+
+
+        context1.fillStyle = "#CCC";
+        context1.font = "16px Courier New"
+        context1.fillText("another word", x, y + 100);
+        x = x + 0.5;
+
+        if (x >= context1.canvas.width) x = -10;
+    }());
+
+</script>
+
+</html>

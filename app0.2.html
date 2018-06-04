@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        #canvas1 {
+            border: #123
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas1" width="500" height="400"></canvas>
+</body>
+<script type="text/javascript">
+    var context1 = document.getElementById("canvas1").getContext("2d");
+
+    (function animation() {
+        /*window.requestAnimationFrame(animation);
+        context1.clearRect(0, 0, context1.canvas.width, context1.canvas.height);
+        context1.fillStyle = "#FFF";
+        context1.font = "12px Courier New"
+        context1.fillText("hello world!", x, y);
+        x = x + 0.5;
+
+
+        context1.fillStyle = "#CCC";
+        context1.font = "16px Courier New"
+        context1.fillText("another word", x, y + 100);
+        x = x + 0.5;
+
+        if (x >= context1.canvas.width) x = -10;
+        */
+    }());
+
+    function updateScene() {
+        context1.clearRect(0, 0, context1.canvas.width, context1.canvas.height);
+        controller.draw(context1);
+    }
+    var config = {
+        UNIT_SIZE: 5,
+        LOGIC_WIDTH: 10,
+        LOGIC_HEIGHT: 16,
+        STARTER_X: 3,
+        STARTER_Y: 0
+    }
+    var map = {
+        init: function (rows, columns) {
+            this.mapTiles = new Array(rows * columns);
+        },
+        moveable: function (ctrls, dx, dy) {
+            for (var key in ctrls) {
+                var el = ctrls[key];
+                if (mapTiles[el.y + dy][el.x + dx] == 1) return false;
+            }
+            return true;
+        },
+        transformable: function (nexts) {
+            for (var key in nexts) {
+                var el = ctrls[key];
+                if (mapTiles[el.y][el.x] == 1) return false;
+            }
+        }
+    }
+    var controller = { 
+        init: function (x, y, size, tiles) {
+            this.x = config.STARTER_X;
+            this.y = config.STARTER_Y;
+            this.size = config.UNIT_SIZE;
+            this.tiles = tiles;
+        },
+        /*如果触碰到其他物体返回false否则返回true,true可以移动*/
+        moveable: function (dx, dy) {
+            for (var key in this.tiles) {
+                var el = this.tiles[key];
+                if (el.x + dx < 0 ||
+                    el.x + dx > map.width ||
+                    el.y + dy < 0 ||
+                    el.y + dy > map.height) {
+                    console.log("confict");
+                    return false;
+                }
+            }
+            return true;
+        },
+        left: function () {
+            if (this.moveable(-1, 0)) {
+                this.tiles.forEach(function (el) {
+                    el.x = el.x - 1;
+                });
+                this.x = this.x - 1;
+            }
+        },
+        right: function () {
+            if (this.moveable(1, 0)) {
+                this.tiles.forEach(function (el) {
+                    el.x = el.x + 1;
+                });
+                this.x = this.x + 1;
+            }
+        },
+        down: function () {
+            if (this.moveable(0, 1)) {
+                this.tiles.forEach(function (el) {
+                    el.y = el.y + 1;
+                });
+                this.y = this.y + 1;
+            }
+        },
+        up: function () {
+            if (this.moveable(0, -1)) {
+                this.tiles.forEach(function (el) {
+                    el.y = el.y - 1;
+                });
+                this.y = this.y - 1;
+            }
+        },
+        draw: function (ctx) {
+            this.tiles.forEach(function (el) {
+                ctx.fillStyle = el.color;
+                ctx.fillRect(el.x * el.size, el.y * el.size, el.size, el.size);
+                console.log("x:", el.x, "y:", el.y, "size:", el.size);
+            });
+        }
+    }
+    var keyprocs = {
+        "37": function () {
+            console.log("LEFT");
+            controller.left();
+        },
+        "38": function () {
+            console.log("UP");
+            controller.up();
+        },
+        "39": function () {
+            console.log("RIGHT");
+            controller.right();
+        },
+        "40": function () {
+            console.log("DOWN");
+            controller.down();
+        }
+    }
+
+    function Tile(c, ox, oy, color) {
+        this.size = config.UNIT_SIZE;
+        this.color = color;
+        this.x = c.x + ox;
+        this.y = c.y + oy;
+    }
+
+    function init() {
+        map.init(config.LOGIC_HEIGHT * config.LOGIC_WIDTH);
+        controller.init(config.STARTER_X,config.STARTER_Y,config.UNIT_SIZE,[
+            new Tile(controller, 0, 0, '#FF0000'),
+            new Tile(controller, 0, 1, '#00FF00'),
+            new Tile(controller, 1, 1, '#0000FF'),
+            new Tile(controller, 1, 0, '#CCCCCC')
+        ]);
+        updateScene();
+    }
+    
+
+    onload = function () {
+        init();
+    }
+    onkeydown = function (e) {
+        if (e.keyCode >= 37 && e.keyCode <= 40) {
+            keyprocs[e.keyCode]();
+            updateScene();
+        }
+    }
+
+</script>
+
+</html>
