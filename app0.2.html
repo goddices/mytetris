@@ -64,9 +64,16 @@
                 var el = ctrls[key];
                 if (mapTiles[el.y][el.x] == 1) return false;
             }
+        },
+        touch: function (ctrls) {
+            for (var key in ctrls) {
+                var el = ctrls[key];
+                if (mapTiles[el.y + 1][el.x] == 1) return true;
+            }
+            return false;
         }
     }
-    var controller = { 
+    var controller = {
         init: function (x, y, size, tiles) {
             this.x = config.STARTER_X;
             this.y = config.STARTER_Y;
@@ -105,9 +112,10 @@
         },
         down: function () {
             if (this.moveable(0, 1)) {
-                this.tiles.forEach(function (el) {
-                    el.y = el.y + 1;
-                });
+                if (map.touch)
+                    this.tiles.forEach(function (el) {
+                        el.y = el.y + 1;
+                    });
                 this.y = this.y + 1;
             }
         },
@@ -155,7 +163,7 @@
 
     function init() {
         map.init(config.LOGIC_HEIGHT * config.LOGIC_WIDTH);
-        controller.init(config.STARTER_X,config.STARTER_Y,config.UNIT_SIZE,[
+        controller.init(config.STARTER_X, config.STARTER_Y, config.UNIT_SIZE, [
             new Tile(controller, 0, 0, '#FF0000'),
             new Tile(controller, 0, 1, '#00FF00'),
             new Tile(controller, 1, 1, '#0000FF'),
@@ -163,7 +171,7 @@
         ]);
         updateScene();
     }
-    
+
 
     onload = function () {
         init();
