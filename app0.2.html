@@ -44,7 +44,7 @@
 
 
     var config = {
-        UNIT_SIZE: 3,
+        UNIT_SIZE: 30,
         LOGIC_WIDTH: 10,
         LOGIC_HEIGHT: 16,
         STARTER_X: 3,
@@ -135,13 +135,16 @@
         },
         freeze: function (ctrlTiles) {
             ctrlTiles.forEach(function (e) {
-                this.mapTiles[e.y][e.x] = 1;
+                this.map.mapTiles[e.y][e.x] = 1;
             });
         },
         isBottom: function (ctrls) {
             for (var key in ctrls) {
                 var el = ctrls[key];
-                if (this.mapTiles[el.y + 1][el.x] == 1) return true;
+                if (el.y + 1 > this.height - 1 ||
+                    this.mapTiles[el.y + 1][el.x] == 1) {
+                    return true;
+                }
             }
         },
         clearLines: function () {
@@ -157,9 +160,9 @@
         draw: function (ctx) {
             for (var iy = 0; iy < this.width; iy++) {
                 for (var ix = 0; ix < this.height; ix++) {
-                    if (mapTiles[iy][ix] == 1) {
-                        ctx.fillStyle = "#DDD";
-                        ctx.fillRect(ix * this.size, iy * this.ize, this.size, this.size);
+                    if (this.mapTiles[iy][ix] == 1) {
+                        ctx.fillStyle = "#FF0000";
+                        ctx.fillRect(ix * this.size, iy * this.size, this.size, this.size);
                     }
                 }
             }
@@ -200,12 +203,12 @@
             if (map.moveable(this.tiles, 0, 1)) {
                 this.tiles.forEach(function (el) {
                     map.mapTiles[el.y][el.x] = 0;
-                }); 
+                });
                 this.tiles.forEach(function (el) {
                     el.y = el.y + 1;
                     map.mapTiles[el.y][el.x] = 2;
                 });
-                this.y = this.y + 1; 
+                this.y = this.y + 1;
             }
         },
         up: function () {
@@ -225,7 +228,7 @@
         falldown: function () {
             if (map.isBottom(controller.tiles)) {
                 map.freeze(controller.tiles);
-                map.startNewController(controller);
+                this.reset(); 
             } else {
                 this.down();
             }
@@ -260,9 +263,10 @@
         },
         init: function () {
             this.ui();
-            map.init(config.LOGIC_HEIGHT, config.LOGIC_WIDTH);
+            map.init(config.LOGIC_HEIGHT, config.LOGIC_WIDTH,config.UNIT_SIZE);
             controller.init(config.STARTER_X, config.STARTER_Y, config.UNIT_SIZE);
             this.updateScene();
+            debug.print();
         },
         keyboard: function (e) {
             if (e.keyCode >= 37 && e.keyCode <= 40) {
@@ -272,8 +276,10 @@
             }
         },
         updateScene: function () {
+            console.log(" update..");
             context1.clearRect(0, 0, context1.canvas.width, context1.canvas.height);
             controller.draw(context1);
+            map.draw(context1);
         },
 
         keyprocs: {
