@@ -37,10 +37,7 @@
         */
     }());
 
-    function updateScene() {
-        context1.clearRect(0, 0, context1.canvas.width, context1.canvas.height);
-        controller.draw(context1);
-    }
+
     var config = {
         UNIT_SIZE: 5,
         LOGIC_WIDTH: 10,
@@ -48,14 +45,73 @@
         STARTER_X: 3,
         STARTER_Y: 0
     }
-    var map = {
-        init: function (rows, columns) {
-            this.mapTiles = new Array(rows * columns);
+    var tetris = {
+        /* 方块的定义
+         * 以 controller.x y 为原点(0,0) 定义4乘4的矩阵，每个点描述如下
+         * (0,0)  (1,0)  (2,0)  (3,0)
+         * (0,1)  (1,1)  (2,1)  (3,1)
+         * (0,2)  (1,2)  (2,2)  (3,2)
+         * (0,3)  (1,3)  (2,3)  (3,3)
+         *
+         * I : 是一个长条 占据4个格子(0,1,2,3四个点)，两种形态 横着和竖着，数据表现为[x0,y0,x1,y1,x2,y2,x3,y3] x,y是坐标，就是
+         *     前面提到的占据4个格子的四个点 ↑
+         * L : L形状的方块，占据4个格子 
+         * CL: L的镜像
+         * 其他的省略 
+         */
+        types: {
+            I: [2, [1, 0, 1, 1, 1, 2, 1, 3], [0, 1, 1, 1, 2, 1, 3, 1]],
+            L: [4, [1, 0, 1, 1, 1, 2, 2, 2], [2, 0, 0, 1, 1, 1, 2, 1], [0, 0, 1, 0, 1, 1, 1, 2], [0, 1, 0, 2, 1, 1, 2, 1]],
+            CL: [4, [1, 0, 1, 1, 1, 2, 0, 2], [0, 1, 1, 1, 2, 1, 2, 2], [1, 0, 2, 0, 1, 1, 1, 2], [0, 0, 0, 1, 1, 1, 2, 1]],
+            T: [4, [0, 1, 1, 1, 2, 1, 1, 2], [1, 0, 1, 1, 1, 2, 2, 1], [0, 1, 1, 1, 2, 1, 1, 0], [1, 0, 1, 1, 1, 2, 0, 1]],
+            Z: [2, [0, 1, 1, 1, 1, 2, 2, 2], [1, 0, 1, 1, 0, 1, 0, 2]],
+            CZ: [2, [2, 0, 1, 0, 1, 1, 0, 1], [0, 0, 0, 1, 1, 1, 1, 2]],
+            O: [1, [0, 0, 0, 1, 1, 0, 1, 1]]
         },
-        moveable: function (ctrls, dx, dy) {
-            for (var key in ctrls) {
-                var el = ctrls[key];
-                if (mapTiles[el.y + dy][el.x + dx] == 1) return false;
+        //types: (function () { return [this.I, this.L, this.CL, this.T, this.Z, this.CZ, this.O]; })(),
+        colors: ['#ff0000', '#00ff00', '#0000ff', '#da70d6', '#abcdef'],
+
+        //XXX: here is ugly ,FLAG:C01
+        random: function () {
+            //随机颜色索引
+            var rndCI = Math.floor(Math.random() * this.colors.length);
+            //随机类型索引
+            var typesKeys = Object.keys(this.types);
+            var firstShape = this.types[typesKeys[Math.floor(Math.random() * typesKeys.length)]][1];
+            return { color: this.colors[rndCI], type: firstShape };
+            /*
+            var idx = tetris.random();
+            for (var index = 0; index < this.tiles.length; index++) {
+                var e = this.tiles[index];
+                e.color = tetris.colors[idx.colorIndex];
+                e.x = this.x + idx.typeIndex[1][index * 2];
+                e.y = this.y + idx.typeIndex[1][index * 2 + 1];
+                e.size = this.size;
+            }
+            */
+        }
+    }
+    var map = {
+        init: function (rows, columns, size) {
+            this.width = columns;
+            this.height = rows;
+            this.size = size;
+            this.mapTiles = new Array(rows * columns);
+            for (var index = 0; index < this.mapTiles.length; index++) {
+                this.mapTiles[index] = 0;
+            }
+        },
+        /*如果触碰到其他物体返回false否则返回true,true可以移动*/
+        moveable: function (ctrlTiles, dx, dy) {
+            for (var key in ctrlTiles) {
+                var el = ctrlTiles[key];
+                if (this.mapTiles[el.y + dy][el.x + dx] == 1 ||
+                    el.x + dx < 0 ||
+                    el.x + dx > this.width ||
+                    el.y + dy < 0 ||
+                    el.y + dy > this.height
+                )
+                    return false;
             }
             return true;
         },
@@ -65,37 +121,47 @@
                 if (mapTiles[el.y][el.x] == 1) return false;
             }
         },
-        touch: function (ctrls) {
+        freeze: function (ctrlTiles) {
+            ctrlTiles.forEach(function (e) {
+                mapTiles[el.y][el.x] = 1;
+            });
+        },
+        isBottom: function (ctrls) {
             for (var key in ctrls) {
                 var el = ctrls[key];
-                if (mapTiles[el.y + 1][el.x] == 1) return true;
+                if (this.mapTiles[el.y + 1][el.x] == 1) return true;
             }
-            return false;
+        },
+        clearLines: function () {
+
+        },
+        isLineFull: function () {
+
+        },
+        startNewController: function (ctrl) {
+            ctrl.reset();
+
+        },
+        draw: function (ctx) {
+            for (var iy = 0; iy < this.width; iy++) {
+                for (var ix = 0; ix < this.height; ix++) {
+                    if (mapTiles[iy][ix] == 1) {
+                        ctx.fillStyle = "#DDD";
+                        ctx.fillRect(ix * this.size, iy * this.ize, this.size, this.size);
+                    }
+                }
+            }
         }
     }
     var controller = {
-        init: function (x, y, size, tiles) {
-            this.x = config.STARTER_X;
-            this.y = config.STARTER_Y;
+        init: function (init_x, init_y, size) {
+            this.init = { x: init_x, y: init_y };
             this.size = config.UNIT_SIZE;
-            this.tiles = tiles;
-        },
-        /*如果触碰到其他物体返回false否则返回true,true可以移动*/
-        moveable: function (dx, dy) {
-            for (var key in this.tiles) {
-                var el = this.tiles[key];
-                if (el.x + dx < 0 ||
-                    el.x + dx > map.width ||
-                    el.y + dy < 0 ||
-                    el.y + dy > map.height) {
-                    console.log("confict");
-                    return false;
-                }
-            }
-            return true;
+            this.tiles = [{}, {}, {}, {}];
+            this.reset();
         },
         left: function () {
-            if (this.moveable(-1, 0)) {
+            if (map.moveable(this.tiles, -1, 0)) {
                 this.tiles.forEach(function (el) {
                     el.x = el.x - 1;
                 });
@@ -103,7 +169,7 @@
             }
         },
         right: function () {
-            if (this.moveable(1, 0)) {
+            if (map.moveable(this.tiles, 1, 0)) {
                 this.tiles.forEach(function (el) {
                     el.x = el.x + 1;
                 });
@@ -111,77 +177,101 @@
             }
         },
         down: function () {
-            if (this.moveable(0, 1)) {
-                if (map.touch)
+            if (map.moveable(this.tiles, 0, 1)) {
+                if (map.isBottom(this.tiles)) {
+                    map.freeze(this.tiles);
+                } else {
                     this.tiles.forEach(function (el) {
                         el.y = el.y + 1;
                     });
-                this.y = this.y + 1;
+                    this.y = this.y + 1;
+                }
             }
         },
         up: function () {
-            if (this.moveable(0, -1)) {
+            if (map.moveable(this.tiles, 0, -1)) {
                 this.tiles.forEach(function (el) {
                     el.y = el.y - 1;
                 });
                 this.y = this.y - 1;
             }
         },
+        //XXX: here is ugly,FLAG:C01
+        reset: function () {
+            this.x = this.init.x;
+            this.y = this.init.y;
+            var tet = tetris.random();
+            for (var index = 0; index < this.tiles.length; index++) {
+                var e = this.tiles[index];
+                e.color = tet.color;
+                e.x = this.x + tet.type[index * 2];
+                e.y = this.y + tet.type[index * 2 + 1];
+                e.size = this.size;
+            }
+        },
         draw: function (ctx) {
             this.tiles.forEach(function (el) {
                 ctx.fillStyle = el.color;
                 ctx.fillRect(el.x * el.size, el.y * el.size, el.size, el.size);
-                console.log("x:", el.x, "y:", el.y, "size:", el.size);
             });
         }
     }
-    var keyprocs = {
-        "37": function () {
-            console.log("LEFT");
-            controller.left();
+
+    var engine = {
+        init: function () {
+            map.init(config.LOGIC_HEIGHT, config.LOGIC_WIDTH);
+            controller.init(config.STARTER_X, config.STARTER_Y, config.UNIT_SIZE);
+            this.updateScene();
         },
-        "38": function () {
-            console.log("UP");
-            controller.up();
+        keyboard: function (e) {
+            if (e.keyCode >= 37 && e.keyCode <= 40) {
+                this.keyprocs[e.keyCode]();
+                this.updateScene();
+            }
         },
-        "39": function () {
-            console.log("RIGHT");
-            controller.right();
+        updateScene: function () {
+            context1.clearRect(0, 0, context1.canvas.width, context1.canvas.height);
+            controller.draw(context1);
         },
-        "40": function () {
-            console.log("DOWN");
-            controller.down();
+
+        /**@description  关键的函数，下落过程中，要判断满行、消行、判断游戏失败等游戏逻辑
+         */
+        falldown: function () {
+            if (map.isBottom(controller.tiles)) {
+                map.freeze(controller.tiles);
+                map.startNewController(controller);
+            } else {
+                controller.down();
+            }
+        },
+        keyprocs: {
+            "37": function () {
+                console.log("LEFT");
+                controller.left();
+            },
+            "38": function () {
+                console.log("UP");
+                controller.up();
+            },
+            "39": function () {
+                console.log("RIGHT");
+                controller.right();
+            },
+            "40": function () {
+                console.log("DOWN");
+                controller.down();
+            }
         }
     }
-
-    function Tile(c, ox, oy, color) {
-        this.size = config.UNIT_SIZE;
-        this.color = color;
-        this.x = c.x + ox;
-        this.y = c.y + oy;
-    }
-
-    function init() {
-        map.init(config.LOGIC_HEIGHT * config.LOGIC_WIDTH);
-        controller.init(config.STARTER_X, config.STARTER_Y, config.UNIT_SIZE, [
-            new Tile(controller, 0, 0, '#FF0000'),
-            new Tile(controller, 0, 1, '#00FF00'),
-            new Tile(controller, 1, 1, '#0000FF'),
-            new Tile(controller, 1, 0, '#CCCCCC')
-        ]);
-        updateScene();
-    }
-
 
     onload = function () {
-        init();
+        engine.init();
     }
     onkeydown = function (e) {
-        if (e.keyCode >= 37 && e.keyCode <= 40) {
-            keyprocs[e.keyCode]();
-            updateScene();
-        }
+        engine.keyboard(e);
     }
+
+    
 
 </script>
 
