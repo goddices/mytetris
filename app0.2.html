@@ -7,17 +7,22 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
     <style>
-        #canvas1 {
-            border: #123
+        #debug {
+            float: left;
+            display: block;
+            width: 400px;
+            height: 600px;
         }
     </style>
 </head>
 
 <body>
-    <canvas id="canvas1" width="500" height="400"></canvas>
+    <canvas id="canvas1" width="100" height="100"></canvas>
+    <div id="debug"></div>
 </body>
 <script type="text/javascript">
-    var context1 = document.getElementById("canvas1").getContext("2d");
+    var canvas1 = document.getElementById("canvas1");
+    var context1 = canvas1.getContext("2d");
 
     (function animation() {
         /*window.requestAnimationFrame(animation);
@@ -39,11 +44,15 @@
 
 
     var config = {
-        UNIT_SIZE: 5,
+        UNIT_SIZE: 3,
         LOGIC_WIDTH: 10,
         LOGIC_HEIGHT: 16,
         STARTER_X: 3,
-        STARTER_Y: 0
+        STARTER_Y: 0,
+        style: {
+            border: "#1a7ada 1px solid",
+            background: "#d3d3d3"
+        }
     }
     var tetris = {
         /* 方块的定义
@@ -69,7 +78,7 @@
             O: [1, [0, 0, 0, 1, 1, 0, 1, 1]]
         },
         //types: (function () { return [this.I, this.L, this.CL, this.T, this.Z, this.CZ, this.O]; })(),
-        colors: ['#ff0000', '#00ff00', '#0000ff', '#da70d6', '#abcdef'],
+        colors: ['#d2691e', '#9400d3', '#9370db', '#da70d6', '#8b0000', '#ff8c00', '#008000', '#000080'],
 
         //XXX: here is ugly ,FLAG:C01
         random: function () {
@@ -96,20 +105,23 @@
             this.width = columns;
             this.height = rows;
             this.size = size;
-            this.mapTiles = new Array(rows * columns);
-            for (var index = 0; index < this.mapTiles.length; index++) {
-                this.mapTiles[index] = 0;
+            this.mapTiles = new Array(rows);
+            for (iy = 0; iy < config.LOGIC_HEIGHT; iy++) {
+                this.mapTiles[iy] = new Array(columns);
+                for (ix = 0; ix < config.LOGIC_WIDTH; ix++) {
+                    this.mapTiles[iy][ix] = 0;
+                }
             }
         },
         /*如果触碰到其他物体返回false否则返回true,true可以移动*/
         moveable: function (ctrlTiles, dx, dy) {
             for (var key in ctrlTiles) {
                 var el = ctrlTiles[key];
-                if (this.mapTiles[el.y + dy][el.x + dx] == 1 ||
-                    el.x + dx < 0 ||
-                    el.x + dx > this.width ||
+                if (el.x + dx < 0 ||
+                    el.x + dx > this.width - 1 ||
                     el.y + dy < 0 ||
-                    el.y + dy > this.height
+                    el.y + dy > this.height - 1 ||
+                    this.mapTiles[el.y + dy][el.x + dx] == 1
                 )
                     return false;
             }
@@ -123,7 +135,7 @@
         },
         freeze: function (ctrlTiles) {
             ctrlTiles.forEach(function (e) {
-                mapTiles[el.y][el.x] = 1;
+                this.mapTiles[e.y][e.x] = 1;
             });
         },
         isBottom: function (ctrls) {
@@ -156,14 +168,18 @@
     var controller = {
         init: function (init_x, init_y, size) {
             this.init = { x: init_x, y: init_y };
-            this.size = config.UNIT_SIZE;
+            this.size = size;
             this.tiles = [{}, {}, {}, {}];
             this.reset();
         },
         left: function () {
             if (map.moveable(this.tiles, -1, 0)) {
                 this.tiles.forEach(function (el) {
+                    map.mapTiles[el.y][el.x] = 0;
+                });
+                this.tiles.forEach(function (el) {
                     el.x = el.x - 1;
+                    map.mapTiles[el.y][el.x] = 2;
                 });
                 this.x = this.x - 1;
             }
@@ -171,29 +187,47 @@
         right: function () {
             if (map.moveable(this.tiles, 1, 0)) {
                 this.tiles.forEach(function (el) {
+                    map.mapTiles[el.y][el.x] = 0;
+                });
+                this.tiles.forEach(function (el) {
                     el.x = el.x + 1;
+                    map.mapTiles[el.y][el.x] = 2;
                 });
                 this.x = this.x + 1;
             }
         },
         down: function () {
             if (map.moveable(this.tiles, 0, 1)) {
-                if (map.isBottom(this.tiles)) {
-                    map.freeze(this.tiles);
-                } else {
-                    this.tiles.forEach(function (el) {
-                        el.y = el.y + 1;
-                    });
-                    this.y = this.y + 1;
-                }
+                this.tiles.forEach(function (el) {
+                    map.mapTiles[el.y][el.x] = 0;
+                }); 
+                this.tiles.forEach(function (el) {
+                    el.y = el.y + 1;
+                    map.mapTiles[el.y][el.x] = 2;
+                });
+                this.y = this.y + 1; 
             }
         },
         up: function () {
             if (map.moveable(this.tiles, 0, -1)) {
                 this.tiles.forEach(function (el) {
+                    map.mapTiles[el.y][el.x] = 0;
+                });
+                this.tiles.forEach(function (el) {
                     el.y = el.y - 1;
+                    map.mapTiles[el.y][el.x] = 2;
                 });
                 this.y = this.y - 1;
+            }
+        },
+        /**@description  关键的函数，下落过程中，要判断满行、消行、判断游戏失败等游戏逻辑
+         */
+        falldown: function () {
+            if (map.isBottom(controller.tiles)) {
+                map.freeze(controller.tiles);
+                map.startNewController(controller);
+            } else {
+                this.down();
             }
         },
         //XXX: here is ugly,FLAG:C01
@@ -218,7 +252,14 @@
     }
 
     var engine = {
+        ui: function () {
+            canvas1.style.background = config.style.background;
+            canvas1.style.border = config.style.border;
+            canvas1.width = config.UNIT_SIZE * config.LOGIC_WIDTH;
+            canvas1.height = config.UNIT_SIZE * config.LOGIC_HEIGHT;
+        },
         init: function () {
+            this.ui();
             map.init(config.LOGIC_HEIGHT, config.LOGIC_WIDTH);
             controller.init(config.STARTER_X, config.STARTER_Y, config.UNIT_SIZE);
             this.updateScene();
@@ -227,6 +268,7 @@
             if (e.keyCode >= 37 && e.keyCode <= 40) {
                 this.keyprocs[e.keyCode]();
                 this.updateScene();
+                debug.print();
             }
         },
         updateScene: function () {
@@ -234,16 +276,6 @@
             controller.draw(context1);
         },
 
-        /**@description  关键的函数，下落过程中，要判断满行、消行、判断游戏失败等游戏逻辑
-         */
-        falldown: function () {
-            if (map.isBottom(controller.tiles)) {
-                map.freeze(controller.tiles);
-                map.startNewController(controller);
-            } else {
-                controller.down();
-            }
-        },
         keyprocs: {
             "37": function () {
                 console.log("LEFT");
@@ -259,8 +291,27 @@
             },
             "40": function () {
                 console.log("DOWN");
-                controller.down();
+                controller.falldown();
             }
+        }
+    }
+
+    var debug = {
+        print: function () {
+            var output = "";
+            var iy = 0, ix = 0;
+            for (iy = 0; iy < config.LOGIC_HEIGHT; iy++) {
+                for (ix = 0; ix < config.LOGIC_WIDTH; ix++) {
+                    output += map.mapTiles[iy][ix] + ' ';
+                }
+                output += "<br />";
+            }
+            for (var index = 0; index < controller.tiles.length; index++) {
+                var e = controller.tiles[index];
+                output += "tiles[" + index + "]" + "x:" + e.x + ",y:" + e.y + "<br />";
+            }
+
+            document.getElementById("debug").innerHTML = output;
         }
     }
 
@@ -271,7 +322,7 @@
         engine.keyboard(e);
     }
 
-    
+
 
 </script>
 
