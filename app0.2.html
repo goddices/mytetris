@@ -44,14 +44,14 @@
 
 
     var config = {
-        UNIT_SIZE: 2,
-        LOGIC_WIDTH: 10,
-        LOGIC_HEIGHT: 16,
+        UNIT_SIZE: 30,
+        LOGIC_WIDTH: 12,
+        LOGIC_HEIGHT: 18,
         STARTER_X: 3,
         STARTER_Y: 0,
         style: {
             border: "#1a7ada 1px solid",
-            background: "#d3d3d3"
+            background: "#000"
         },
         FZBGCOLOR: "#cdcdcd",
         DEBUG: true
@@ -123,7 +123,10 @@
         },
         transformable: function (ox, oy, nexts) {
             for (var index = 0; index < nexts.length; index += 2) {
-                if (this.mapTiles[oy + nexts[index + 1]][ox + nexts[index]] == 1) {
+                if (this.mapTiles[oy + nexts[index + 1]][ox + nexts[index]] == 1 ||
+                    oy + nexts[index + 1] < 0 || oy + nexts[index + 1] > this.height - 1 ||
+                    ox + nexts[index] < 0 || ox + nexts[index] > this.width - 1
+                ) {
                     return false;
                 }
             }
@@ -153,15 +156,9 @@
                 }
                 if (lineSum == this.width) {
                     //这一行每一列的值都是1，所以和等于this.width
-
-                    for (var ix = 0; ix < this.width; ix++) {
-                        if (iy == 0) {
-                            this.mapTiles[iy][ix] = 0;
-                        }
-                        else {
-                            this.mapTiles[iy][ix] = this.mapTiles[iy - 1][ix] || 0;
-                        }
-                    }
+                    this.mapTiles.splice(iy, 1);
+                    this.mapTiles.unshift(this.newLine());
+                    iy++;
                     lines++;
                 }
             }
@@ -177,6 +174,13 @@
                     }
                 }
             }
+        },
+        newLine: function () {
+            var na = new Array(this.width);
+            for (var i = 0; i < this.width; i++) {
+                na[i] = 0;
+            }
+            return na;
         }
     }
     var controller = {
@@ -263,9 +267,9 @@
                 for (var index = 0; index < this.tiles.length; index++) {
                     var e = this.tiles[index];
                     e.x = this.x + next[index * 2];
-                    e.y = this.y + next[index * 2 + 1]; 
-                    this.ptr = (this.ptr + 1) % this.tetris.type.length;
+                    e.y = this.y + next[index * 2 + 1];
                 }
+                this.ptr = (this.ptr + 1) % this.tetris.type.length;
             }
             //重新占据
             for (var index = 0; index < this.tiles.length; index++) {
@@ -305,7 +309,7 @@
             canvas1.height = config.UNIT_SIZE * config.LOGIC_HEIGHT;
         },
         init: function () {
-            //this.ui();
+            this.ui();
             map.init(config.LOGIC_HEIGHT, config.LOGIC_WIDTH, config.UNIT_SIZE, config.FZBGCOLOR);
             controller.init(config.STARTER_X, config.STARTER_Y, config.UNIT_SIZE);
             this.updateScene();
