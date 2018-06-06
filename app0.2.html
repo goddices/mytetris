@@ -44,7 +44,7 @@
 
 
     var config = {
-        UNIT_SIZE: 30,
+        UNIT_SIZE: 2,
         LOGIC_WIDTH: 10,
         LOGIC_HEIGHT: 16,
         STARTER_X: 3,
@@ -52,7 +52,9 @@
         style: {
             border: "#1a7ada 1px solid",
             background: "#d3d3d3"
-        }
+        },
+        FZBGCOLOR: "#cdcdcd",
+        DEBUG: true
     }
     var tetris = {
         /* 方块的定义
@@ -69,13 +71,13 @@
          * 其他的省略 
          */
         types: {
-            I: [2, [1, 0, 1, 1, 1, 2, 1, 3], [0, 1, 1, 1, 2, 1, 3, 1]],
-            L: [4, [1, 0, 1, 1, 1, 2, 2, 2], [2, 0, 0, 1, 1, 1, 2, 1], [0, 0, 1, 0, 1, 1, 1, 2], [0, 1, 0, 2, 1, 1, 2, 1]],
-            CL: [4, [1, 0, 1, 1, 1, 2, 0, 2], [0, 1, 1, 1, 2, 1, 2, 2], [1, 0, 2, 0, 1, 1, 1, 2], [0, 0, 0, 1, 1, 1, 2, 1]],
-            T: [4, [0, 1, 1, 1, 2, 1, 1, 2], [1, 0, 1, 1, 1, 2, 2, 1], [0, 1, 1, 1, 2, 1, 1, 0], [1, 0, 1, 1, 1, 2, 0, 1]],
-            Z: [2, [0, 1, 1, 1, 1, 2, 2, 2], [1, 0, 1, 1, 0, 1, 0, 2]],
-            CZ: [2, [2, 0, 1, 0, 1, 1, 0, 1], [0, 0, 0, 1, 1, 1, 1, 2]],
-            O: [1, [0, 0, 0, 1, 1, 0, 1, 1]]
+            I: [[1, 0, 1, 1, 1, 2, 1, 3], [0, 1, 1, 1, 2, 1, 3, 1]],
+            L: [[1, 0, 1, 1, 1, 2, 2, 2], [2, 0, 0, 1, 1, 1, 2, 1], [0, 0, 1, 0, 1, 1, 1, 2], [0, 1, 0, 2, 1, 1, 2, 1]],
+            CL: [[1, 0, 1, 1, 1, 2, 0, 2], [0, 1, 1, 1, 2, 1, 2, 2], [1, 0, 2, 0, 1, 1, 1, 2], [0, 0, 0, 1, 1, 1, 2, 1]],
+            T: [[0, 1, 1, 1, 2, 1, 1, 2], [1, 0, 1, 1, 1, 2, 2, 1], [0, 1, 1, 1, 2, 1, 1, 0], [1, 0, 1, 1, 1, 2, 0, 1]],
+            Z: [[0, 1, 1, 1, 1, 2, 2, 2], [1, 0, 1, 1, 0, 1, 0, 2]],
+            CZ: [[2, 0, 1, 0, 1, 1, 0, 1], [0, 0, 0, 1, 1, 1, 1, 2]],
+            O: [[0, 0, 0, 1, 1, 0, 1, 1]]
         },
         //types: (function () { return [this.I, this.L, this.CL, this.T, this.Z, this.CZ, this.O]; })(),
         colors: ['#d2691e', '#9400d3', '#9370db', '#da70d6', '#8b0000', '#ff8c00', '#008000', '#000080'],
@@ -86,26 +88,17 @@
             var rndCI = Math.floor(Math.random() * this.colors.length);
             //随机类型索引
             var typesKeys = Object.keys(this.types);
-            var firstShape = this.types[typesKeys[Math.floor(Math.random() * typesKeys.length)]][1];
-            return { color: this.colors[rndCI], type: firstShape };
-            /*
-            var idx = tetris.random();
-            for (var index = 0; index < this.tiles.length; index++) {
-                var e = this.tiles[index];
-                e.color = tetris.colors[idx.colorIndex];
-                e.x = this.x + idx.typeIndex[1][index * 2];
-                e.y = this.y + idx.typeIndex[1][index * 2 + 1];
-                e.size = this.size;
-            }
-            */
+            var type = this.types[typesKeys[Math.floor(Math.random() * typesKeys.length)]];
+            return { color: this.colors[rndCI], type: type };
         }
     }
     var map = {
-        init: function (rows, columns, size) {
+        init: function (rows, columns, size, fzbg) {
             this.width = columns;
             this.height = rows;
             this.size = size;
             this.mapTiles = new Array(rows);
+            this.freezingBgColor = fzbg;
             for (iy = 0; iy < config.LOGIC_HEIGHT; iy++) {
                 this.mapTiles[iy] = new Array(columns);
                 for (ix = 0; ix < config.LOGIC_WIDTH; ix++) {
@@ -122,25 +115,28 @@
                     el.y + dy < 0 ||
                     el.y + dy > this.height - 1 ||
                     this.mapTiles[el.y + dy][el.x + dx] == 1
-                )
+                ) {
                     return false;
+                }
             }
             return true;
         },
-        transformable: function (nexts) {
-            for (var key in nexts) {
-                var el = ctrls[key];
-                if (mapTiles[el.y][el.x] == 1) return false;
+        transformable: function (ox, oy, nexts) {
+            for (var index = 0; index < nexts.length; index += 2) {
+                if (this.mapTiles[oy + nexts[index + 1]][ox + nexts[index]] == 1) {
+                    return false;
+                }
             }
+            return true;
         },
         freeze: function (ctrlTiles) {
             ctrlTiles.forEach(function (e) {
                 this.map.mapTiles[e.y][e.x] = 1;
             });
         },
-        isBottom: function (ctrls) {
-            for (var key in ctrls) {
-                var el = ctrls[key];
+        isBottom: function (ctrlTiles) {
+            for (var key in ctrlTiles) {
+                var el = ctrlTiles[key];
                 if (el.y + 1 > this.height - 1 ||
                     this.mapTiles[el.y + 1][el.x] == 1) {
                     return true;
@@ -148,20 +144,35 @@
             }
         },
         clearLines: function () {
+            //必须在freeze之后调用，判断数组map.mapTiles某一行的和是否等于this.width
+            var lines = 0;
+            for (var iy = this.height - 1; iy >= 0; iy--) {
+                var lineSum = 0;
+                for (var ix = 0; ix < this.width; ix++) {
+                    lineSum += this.mapTiles[iy][ix];
+                }
+                if (lineSum == this.width) {
+                    //这一行每一列的值都是1，所以和等于this.width
 
-        },
-        isLineFull: function () {
-
-        },
-        startNewController: function (ctrl) {
-            ctrl.reset();
-
+                    for (var ix = 0; ix < this.width; ix++) {
+                        if (iy == 0) {
+                            this.mapTiles[iy][ix] = 0;
+                        }
+                        else {
+                            this.mapTiles[iy][ix] = this.mapTiles[iy - 1][ix] || 0;
+                        }
+                    }
+                    lines++;
+                }
+            }
+            return lines;
         },
         draw: function (ctx) {
-            for (var iy = 0; iy < this.width; iy++) {
-                for (var ix = 0; ix < this.height; ix++) {
+            for (var iy = 0; iy < this.height; iy++) {
+                for (var ix = 0; ix < this.width; ix++) {
                     if (this.mapTiles[iy][ix] == 1) {
-                        ctx.fillStyle = "#FF0000";
+                        //console.log("map update: ",ix * this.size, iy * this.size, this.size, this.size)
+                        ctx.fillStyle = this.freezingBgColor;
                         ctx.fillRect(ix * this.size, iy * this.size, this.size, this.size);
                     }
                 }
@@ -174,6 +185,9 @@
             this.size = size;
             this.tiles = [{}, {}, {}, {}];
             this.reset();
+            this.tiles.forEach(function (e) {
+                map.mapTiles[e.y][e.x] = 2;
+            });
         },
         left: function () {
             if (map.moveable(this.tiles, -1, 0)) {
@@ -223,26 +237,54 @@
                 this.y = this.y - 1;
             }
         },
-        /**@description  关键的函数，下落过程中，要判断满行、消行、判断游戏失败等游戏逻辑
+        /**@description  关键的函数，下落过程中，要判断消行、判断游戏失败等游戏逻辑
          */
         falldown: function () {
             if (map.isBottom(controller.tiles)) {
                 map.freeze(controller.tiles);
-                this.reset(); 
+                map.clearLines();
+                engine.updateScene();
+                this.reset();
             } else {
                 this.down();
             }
         },
-        //XXX: here is ugly,FLAG:C01
+        //XXX:代码有点丑陋
+        transform: function () {
+            console.log("ptr:", this.ptr);
+            var next = this.tetris.type[(this.ptr + 1) % this.tetris.type.length];
+            //先全部重置为0  
+            for (var index = 0; index < this.tiles.length; index++) {
+                var e = this.tiles[index];
+                map.mapTiles[e.y][e.x] = 0;
+            }
+            //判断是否可以变形.然后赋值
+            if (map.transformable(this.x, this.y, next)) {
+                for (var index = 0; index < this.tiles.length; index++) {
+                    var e = this.tiles[index];
+                    e.x = this.x + next[index * 2];
+                    e.y = this.y + next[index * 2 + 1]; 
+                    this.ptr = (this.ptr + 1) % this.tetris.type.length;
+                }
+            }
+            //重新占据
+            for (var index = 0; index < this.tiles.length; index++) {
+                var e = this.tiles[index];
+                map.mapTiles[e.y][e.x] = 2;
+            }
+        },
+        //XXX: 代码有点丑陋
         reset: function () {
             this.x = this.init.x;
             this.y = this.init.y;
-            var tet = tetris.random();
+            this.tetris = tetris.random();
+            this.ptr = 0;
+            this.current = this.tetris.type[this.ptr];
             for (var index = 0; index < this.tiles.length; index++) {
                 var e = this.tiles[index];
-                e.color = tet.color;
-                e.x = this.x + tet.type[index * 2];
-                e.y = this.y + tet.type[index * 2 + 1];
+                e.color = this.tetris.color;
+                e.x = this.x + this.current[index * 2];
+                e.y = this.y + this.current[index * 2 + 1];
                 e.size = this.size;
             }
         },
@@ -251,7 +293,8 @@
                 ctx.fillStyle = el.color;
                 ctx.fillRect(el.x * el.size, el.y * el.size, el.size, el.size);
             });
-        }
+        },
+
     }
 
     var engine = {
@@ -262,8 +305,8 @@
             canvas1.height = config.UNIT_SIZE * config.LOGIC_HEIGHT;
         },
         init: function () {
-            this.ui();
-            map.init(config.LOGIC_HEIGHT, config.LOGIC_WIDTH,config.UNIT_SIZE);
+            //this.ui();
+            map.init(config.LOGIC_HEIGHT, config.LOGIC_WIDTH, config.UNIT_SIZE, config.FZBGCOLOR);
             controller.init(config.STARTER_X, config.STARTER_Y, config.UNIT_SIZE);
             this.updateScene();
             debug.print();
@@ -276,10 +319,11 @@
             }
         },
         updateScene: function () {
-            console.log(" update..");
+            console.log(".......DRAW........");
             context1.clearRect(0, 0, context1.canvas.width, context1.canvas.height);
-            controller.draw(context1);
             map.draw(context1);
+            controller.draw(context1);
+
         },
 
         keyprocs: {
@@ -289,7 +333,7 @@
             },
             "38": function () {
                 console.log("UP");
-                controller.up();
+                controller.transform();
             },
             "39": function () {
                 console.log("RIGHT");
@@ -310,14 +354,17 @@
                 for (ix = 0; ix < config.LOGIC_WIDTH; ix++) {
                     output += map.mapTiles[iy][ix] + ' ';
                 }
-                output += "<br />";
+                output += "\r\n";
             }
             for (var index = 0; index < controller.tiles.length; index++) {
                 var e = controller.tiles[index];
-                output += "tiles[" + index + "]" + "x:" + e.x + ",y:" + e.y + "<br />";
+                output += "tiles[" + index + "]" + "x:" + e.x + ",y:" + e.y + "\r\n";
             }
-
-            document.getElementById("debug").innerHTML = output;
+            /*console.clear();
+            console.log(output);*/
+            if (config.DEBUG) {
+                document.getElementById("debug").innerHTML = output.replace(/\r\n/g, "<br />");
+            }
         }
     }
 
